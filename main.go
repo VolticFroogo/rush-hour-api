@@ -1,37 +1,38 @@
 package main
 
 import (
-	"fmt"
-	"github.com/VolticFroogo/rush-hour-api/solver"
+	"github.com/VolticFroogo/rush-hour-api/v1"
+	"github.com/getsentry/sentry-go"
+	"github.com/gin-gonic/gin"
+	"log"
+	"os"
 	"time"
 )
 
-const (
-	game1Cars          uint64 = 0x3222777777774001
-	game1Orientations  uint64 = 0xD0B8000000001853
-	game40Cars         uint64 = 0x7203773004133413
-	game40Orientations uint64 = 0x0D28000A01B9AC53
-)
-
 func main() {
-	game := solver.NewGame(game40Cars, game40Orientations)
-	fmt.Println("Initial bitmap:")
-	game.Positions[0].DebugPrintBitmap()
-
-	before := time.Now()
-	solution := game.Solve()
-	delta := time.Now().Sub(before)
-	fmt.Println("\nTime taken to solve game:", delta)
-
-	fmt.Println("Positions checked:", len(game.Seen))
-	if solution == nil {
-		fmt.Println("\nThis game is impossible.")
-		return
+	err := sentry.Init(sentry.ClientOptions{
+		ServerName: os.Getenv("SERVER_NAME"),
+		Debug:      true,
+	})
+	if err != nil {
+		log.Fatalf("Error initialising Sentry: %s", err)
 	}
+	// Flush buffered events before the program terminates.
+	defer sentry.Flush(10 * time.Second)
+	defer sentry.Recover()
 
-	fmt.Println("\nSolved bitmap:")
-	solution.DebugPrintBitmap()
+	r := gin.Default()
+	r.Use(recoveryMiddleware)
 
-	fmt.Println("\nSolution steps:")
-	solution.DebugPrintMoves()
+	v1.Init(r)
+
+	err = r.Run()
+	if err != nil {
+		panic(err)
+	}
+}
+
+func recoveryMiddleware(c *gin.Context) {
+	defer sentry.Recover()
+	c.Next()
 }
