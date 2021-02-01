@@ -1,0 +1,11 @@
+version: '3.7'
+
+services:
+  app:
+    build: .
+    ports:
+      - 8082:8080
+    env_file: production.env
+    restart: unless-stopped
+    container_name: rush-hour-api
+    image: rush-hour-api
